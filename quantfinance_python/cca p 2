@@ -1,0 +1,40 @@
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Tickers of the largest healthcare companies
+tickers = ['JNJ', 'PFE', 'NVS', 'RHHBY', 'MRK']
+
+# Extract metrics
+metrics = {
+    'Company': [],
+    'Trailing P/E': [],
+    'Forward P/E': [],
+    'D/E Ratio': [],
+    'ROE': [],
+    'Revenue Growth': []
+}
+
+for ticker in tickers:
+    info = yf.Ticker(ticker).info
+    metrics['Company'].append(ticker)
+    metrics['Trailing P/E'].append(info.get('trailingPE', None))
+    metrics['Forward P/E'].append(info.get('forwardPE', None))
+    metrics['D/E Ratio'].append(info.get('debtToEquity', None))
+    metrics['ROE'].append(info.get('returnOnEquity', None))
+    metrics['Revenue Growth'].append(info.get('revenueGrowth', None))
+
+df = pd.DataFrame(metrics)
+
+# Visualization
+fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(12, 12))
+
+df.plot(x='Company', y='Trailing P/E', kind='bar', ax=axes[0, 0], title='Trailing P/E Ratio Comparison', color='skyblue')
+df.plot(x='Company', y='Forward P/E', kind='bar', ax=axes[0, 1], title='Forward P/E Ratio Comparison', color='salmon')
+df.plot(x='Company', y='D/E Ratio', kind='bar', ax=axes[1, 0], title='D/E Ratio Comparison', color='lightgreen')
+df.plot(x='Company', y='ROE', kind='bar', ax=axes[1, 1], title='ROE Comparison', color='lightcoral')
+df.plot(x='Company', y='Revenue Growth', kind='bar', ax=axes[2, 0], title='Revenue Growth Comparison', color='gold')
+
+plt.tight_layout()
+plt.show()
+

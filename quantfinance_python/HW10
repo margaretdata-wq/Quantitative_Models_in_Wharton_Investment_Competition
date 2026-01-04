@@ -1,0 +1,53 @@
+graph = {
+   'A': ['B', 'C'],
+   'B': ['D', 'E'],
+   'C': ['F'],
+   'D': [1],
+   'E': [],
+   1: [2, 4],
+   2: [],
+   4: []
+}
+#DFS
+def dfs_recursive_int(graph, node, visited, int_nodes_count):
+    if node not in visited:
+        if isinstance(node, int):
+            int_nodes_count += 1
+
+        visited.append(node)
+
+        if node in graph:  # Check if the node is in the graph before accessing neighbors
+            for neighbor in graph[node]:
+                int_nodes_count = dfs_recursive_int(graph, neighbor, visited, int_nodes_count)
+
+    return int_nodes_count
+
+# Usage example:
+visited_nodes_dfs = []
+dfs_int_count = dfs_recursive_int(graph, 'A', visited_nodes_dfs, 0)
+print(dfs_int_count)
+
+#BFS
+def bfs_count_int_nodes(graph, start_node):
+    visited = []
+    queue = [start_node]
+    int_nodes_count = 0
+
+    while queue:
+        node = queue.pop(0)
+
+        if node not in visited:
+            if isinstance(node, int):
+                int_nodes_count += 1
+
+            visited.append(node)
+
+            if node in graph:
+                queue.extend(graph[node])
+
+    return int_nodes_count
+
+# Usage example:
+bfs_int_count = bfs_count_int_nodes(graph, 'A')
+print(bfs_int_count)
+

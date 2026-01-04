@@ -1,0 +1,94 @@
+
+# Read stocks
+import yfinance as yf
+
+#apple intrinsic value calculations 
+
+aapl = yf.Ticker("aapl")
+outstandingshares = aapl.info["sharesOutstanding"]
+
+#assumptions
+required_rate = 0.07
+perpetual_rate = 0.02
+cashflowgrowthrate = 0.03
+
+years = [1,2,3,4]
+
+freecashflow = [50803000, 64121000, 58896000, 73365000] #last 4 years in 1000s
+
+futurefreecashflow = []
+discountfactor = []
+discountedfuturefreecashflow = []
+terminalvalue = freecashflow[-1] * (1+perpetual_rate)/(required_rate-perpetual_rate)
+
+for year in years:
+    cashflow = freecashflow[-1] * (1+cashflowgrowthrate)**year
+    futurefreecashflow.append(cashflow)
+    discountfactor.append((1+required_rate)**year)
+
+#print(discountfactor)
+#print(futurefreecashflow)
+
+for i in range(0, len(years)):
+    discountedfuturefreecashflow.append(futurefreecashflow[i]/discountfactor[i])
+
+#print(discountedfuturefreecashflow)
+
+discountedterminalvalue = terminalvalue/(1+required_rate)**4 #4 is the number of years 
+discountedfuturefreecashflow.append(discountedterminalvalue)
+
+todaysvalue = sum(discountedfuturefreecashflow)
+
+fairvalue = todaysvalue*1000/outstandingshares
+
+print("the fair value is ${}".format(round(fairvalue,2)))
+'''
+def calculate_dcf(initial_cash_flow, discount_rate, growth_rate, num_years):
+    dcf = 0
+    for year in range(1, num_years + 1):
+        cash_flow = initial_cash_flow * (1 + growth_rate)**year
+        discounted_cash_flow = cash_flow / (1 + discount_rate)**year
+        dcf += discounted_cash_flow
+    return dcf
+
+# Example inputs (you can modify these values)
+initial_cash_flow = 1000000  # Initial cash flow (year 1)
+discount_rate = 0.1  # Discount rate (10%)
+growth_rate = 0.05  # Annual growth rate (5%)
+num_years = 5  # Number of years to project cash flows
+outstanding_shares = 10000
+# Calculate DCF
+dcf_result = calculate_dcf(initial_cash_flow, discount_rate, growth_rate, num_years)
+dcf_actual = dcf_result/outstanding_shares
+# Print the DCF result
+print(f"The estimated DCF value is: ${dcf_actual:.2f}")
+
+
+# Define assumptions
+initial_cash_flow = 100  # Initial cash flow at year 0
+growth_rate = 0.05  # Annual growth rate of cash flows
+discount_rate = 0.1  # Discount rate (required rate of return)
+
+# Define the number of years for the projection
+num_years = 5
+
+# Create a function to calculate the discounted cash flows
+def calculate_dcf(initial_cash_flow, growth_rate, discount_rate, num_years):
+    dcf = 0
+    for year in range(1, num_years + 1):
+        cash_flow = initial_cash_flow * (1 + growth_rate) ** year
+        present_value = cash_flow / (1 + discount_rate) ** year
+        dcf += present_value
+    return dcf
+
+# Calculate the DCF
+dcf_result = calculate_dcf(initial_cash_flow, growth_rate, discount_rate, num_years)
+
+# Display the DCF result
+print(f"Discounted Cash Flow (DCF) Value: ${dcf_result:.2f}")
+
+
+'''
+
+
+

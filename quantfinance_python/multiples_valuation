@@ -1,0 +1,156 @@
+# IMPORTING PACKAGES
+
+import pandas as pd
+import yfinance as yf
+import numpy as np
+from termcolor import colored as cl
+
+# EXTRACTING THE FINANCIAL METRICS
+
+ticker = ['MSFT', 'AMZN', 'GOOGL', 'META', 'BABA', 'NVDA', 'PYPL', 'INTC', 'NFLX', 'AAPL']
+
+def get_metrics(stock):
+    fundamentals = []
+    
+    # 1. PRICE
+    stock_data = yf.Ticker(stock)
+    price = stock_data.history(period="1d")["Close"].iloc[0]
+    fundamentals.append(price)
+    
+    # 2. MARKET CAP
+    marketcap = stock_data.info["marketCap"]
+    fundamentals.append(marketcap)
+    
+    # 3. PE RATIO
+    def get_pe_ratio(ticker):
+        try:
+            stock_data = yf.Ticker(ticker)
+            trailing_pe = stock_data.info.get("trailingPE")
+            
+            if trailing_pe is not None:
+                return trailing_pe
+            else:
+                # Use 'forwardPE' as a backup if 'trailingPE' is not available
+                forward_pe = stock_data.info.get("forwardPE")
+                if forward_pe is not None:
+                    return forward_pe
+                else:
+                    return None
+        except Exception as e:
+            print(f"Error fetching P/E ratio for {ticker}: {e}")
+        return None
+    # 4. EBITDA
+    ebitda = get_ebitda(stock_data)
+    fundamentals.append(ebitda)
+    
+    # 5. EBIT
+    ebit = get_ebit(stock_data)
+    fundamentals.append(ebit)
+    
+    # 6. REVENUE
+    revenue = get_revenue(stock_data)
+    fundamentals.append(revenue)
+    
+    # 7. ENTERPRISE VALUE
+    enterprise_value = get_enterprise_value(stock_data)
+    fundamentals.append(enterprise_value)
+    print(cl(f'Extracted {stock} Fundamentals', attrs=['bold']))
+    
+    return fundamentals
+
+def get_ebitda(stock_data):
+    ebitda = stock_data.info.get("ebitda", None)
+    return ebitda
+
+def get_ebit(stock_data):
+    # You can estimate EBIT using available data or other sources
+    # For example, EBIT = EBITDA - Depreciation & Amortization
+    ebitda = get_ebitda(stock_data)
+    depreciation = stock_data.info.get("depreciation", None)
+    if ebitda is not None and depreciation is not None:
+        ebit = ebitda - depreciation
+        return ebit
+    else:
+        return None
+
+def get_revenue(stock_data):
+    revenue = stock_data.info.get("revenue", None)
+    return revenue
+
+def get_enterprise_value(stock_data):
+    # Enterprise Value is not directly available in yfinance
+    # You can estimate it using other metrics like Market Cap and Debt
+    # Enterprise Value = Market Cap + Total Debt - Cash and Cash Equivalents
+    market_cap = stock_data.info.get("marketCap", None)
+    total_debt = stock_data.info.get("totalDebt", None)
+    cash_and_equivalents = stock_data.info.get("cash", None)
+    if market_cap is not None and total_debt is not None and cash_and_equivalents is not None:
+        enterprise_value = market_cap + total_debt - cash_and_equivalents
+        return enterprise_value
+    else:
+        return None
+
+
+
+msft_fundamentals = get_metrics(ticker[0])
+amzn_fundamentals = get_metrics(ticker[1])
+googl_fundamentals = get_metrics(ticker[2])
+meta_fundamentals = get_metrics(ticker[3])
+baba_fundamentals = get_metrics(ticker[4])
+nvda_fundamentals = get_metrics(ticker[5])
+pypl_fundamentals = get_metrics(ticker[6])
+intc_fundamentals = get_metrics(ticker[7])
+nflx_fundamentals = get_metrics(ticker[8])
+aapl_fundamentals = get_metrics(ticker[9])
+
+# FORMATTING THE DATA
+
+raw_data = [get_metrics(stock) for stock in ticker]
+fundamentals = pd.DataFrame(columns=['price', 'marketcap', 'pe', 'ebitda', 'ebit', 'revenue', 'ev'])
+fundamentals.iloc[:, 0] = range(0, 10)
+
+if len(ticker) == len(raw_data):
+
+    for i, data in enumerate(raw_data):
+        data_df = pd.DataFrame([data], columns=fundamentals.columns)
+        fundamentals = pd.concat([fundamentals, data_df])
+
+fundamentals['symbol'] = ticker
+fundamentals = fundamentals.set_index('symbol')
+fundamentals
+
+# VALUATION MULTIPLES CALCULATION
+
+valuation_multiples = fundamentals.copy().iloc[:, 2:].drop('ev', axis=1)
+valuation_multiples = valuation_multiples.rename(columns={'ebitda': 'ev/ebitda', 'ebit': 'ev/ebit', 'revenue': 'ev/revenue'})
+
+valuation_multiples.iloc[:, 1] = fundamentals['ev'] / fundamentals['ebitda']
+valuation_multiples.iloc[:, 2] = fundamentals['ev'] / fundamentals['ebit']
+valuation_multiples.iloc[:, 3] = fundamentals['ev'] / fundamentals['revenue']
+
+valuation_multiples
+
+# AVERAGE AND DIFFERENCE OF MULTIPLES
+
+index = ['avg', 'diff']
+avg_diff = pd.DataFrame(columns=['pe', 'ev/ebitda', 'ev/ebit', 'ev/revenue'])
+avg_diff.iloc[:, 0] = np.arange(0, 2)
+
+avg_diff.iloc[0] = valuation_multiples[:9].sum() / 10
+avg_diff.iloc[1] = valuation_multiples.iloc[9] / avg_diff.iloc[0]
+avg_diff['avg/diff'] = index
+avg_diff = avg_diff.set_index('avg/diff')
+avg_diff
+
+# CALCULATING THE INTRINSIC VALUE
+
+price_diff = raw_data[9][0] / avg_diff.iloc[1]
+intrinsic_price = round((sum(price_diff) / 4), 2)
+percentage_difference = round(((raw_data[9][0] / intrinsic_price) * 100), 2)
+
+print(cl(f'The listed price of Apple : {raw_data[9][0]}', attrs=['bold']))
+print(cl(f'The intrinsic value of Apple : {intrinsic_price}', attrs=['bold']))
+if intrinsic_price > raw_data[9][0]:
+    print(cl(f'The Underlying Value of Apple stock is {percentage_difference}% Higher than the Listed price', attrs=['bold']))         
+else:
+    print(cl(f'The Underlying Value of Apple stock is {percentage_difference}% Lower than the Listed price', attrs=['bold']))
