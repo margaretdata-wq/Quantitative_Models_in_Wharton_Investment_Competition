@@ -1,0 +1,91 @@
+---
+title: "MVO_backtesting"
+author: "Margaret Liu"
+date: "2023-11-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##import dumb libraries 
+```{r cars}
+library(quantmod)
+library(PerformanceAnalytics)
+library(PortfolioAnalytics)
+library(foreach)
+library(DEoptim)
+library(iterators)
+library(fGarch)
+library(Rglpk)
+library(quadprog)
+library(ROI)
+library(ROI.plugin.glpk)
+library(ROI.plugin.quadprog)
+library(ROI.plugin.symphony)
+library(pso)
+library(GenSA)
+library(corpcor)
+library(testthat)
+library(nloptr)
+library(MASS)
+library(robustbase)
+```
+
+## Actual backtesting 
+
+
+```{r}
+
+#visualize how our portfolio did over time 
+
+tickers <- c("TSM", "PFE", "CMCSA", "HMC", "GMAB", "NKE", "PSA", "DLR")
+
+portfolioPrices <- NULL
+for(ticker in tickers) {
+  portfolioPrices <- cbind(portfolioPrices,
+                           getSymbols.yahoo(ticker, from='2013-01-03', periodicity = 'monthly', auto.assign=FALSE)[,4])
+}
+
+portfolioReturns <- na.omit(ROC(portfolioPrices))
+
+portf <- portfolio.spec(colnames(portfolioReturns))
+
+portf <- add.constraint(portf, type="weight_sum", min_sum=0.99, max_sum=1.01) #relaxed 
+portf <- add.constraint(portf, type="box", min=.01, max=.99)
+portf <- add.objective(portf, type="return", name="mean")
+portf <- add.objective(portf, type="risk", name="StdDev")
+
+rp <- random_portfolios(portf, 10000, "sample") #new method. #10,000 random portfolios, pass into optimization function 
+
+
+opt_rebal <- optimize.portfolio.rebalancing(portfolioReturns,
+                                           portf,
+                                           optimize_method="random",
+                                           rp=rp,
+                                           rebalance_on="months",
+                                           training_period=1,
+                                           rolling_window=10)
+#could change this (reblanace once every 10 months)
+
+equal_weight <- rep(1 / ncol(portfolioReturns), ncol(portfolioReturns)) #benchmark
+benchmark <- Return.portfolio(portfolioReturns, weights = equal_weight)
+colnames(benchmark) <- "Benchmark Portfolio"
+
+sp500prices <- getSymbols.yahoo("SPY", from='2016-01-03', periodicity = 'daily', auto.assign=FALSE)[,4]
+sp500Rets <- na.omit(ROC(sp500prices))
+sp500Rets <- as.xts(sp500Rets)
+
+chart.Weights(opt_rebal, main="Rebalanced Weights Over Time")
+
+rebal_weights <-extractWeights(opt_rebal) #give us the actual weights 
+rebal_returns <- Return.portfolio(portfolioReturns, weights=rebal_weights) #returns objects with the wieghts 
+
+rets_df <- cbind(rebal_returns, benchmark, sp500Rets)
+
+#performance summary 
+charts.PerformanceSummary(rets_df, main="P/L Over Time") #perfromance over time 
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
